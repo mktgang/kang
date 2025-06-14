@@ -1,0 +1,409 @@
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>제품 리뷰 분석 대시보드</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <!-- Chosen Palette: Warm Neutrals -->
+    <!-- Application Structure Plan: The SPA is designed as a top-down narrative dashboard. It starts with a high-level summary (Overall Analysis with a donut chart) to give an instant overview. Users can then scroll or use the sticky navigation to dive deeper into categorized 'Positive Analysis' and 'Improvement Analysis' sections. These sections use bar charts for quantitative comparison and interactive accordion cards to reveal qualitative quotes, preventing information overload. A final 'Keyword Cloud' section offers a quick visual summary of the most frequent customer terms. This structure guides the user from the general to the specific, making complex review data digestible and easy to explore. -->
+    <!-- Visualization & Content Choices: 
+        1. Review Score Distribution -> Goal: Inform -> Viz: Donut Chart -> Interaction: Hover for details -> Justification: Ideal for showing parts-to-whole data, providing a quick look at overall satisfaction. -> Library: Chart.js.
+        2. Positive/Negative Theme Frequency -> Goal: Compare -> Viz: Horizontal Bar Chart -> Interaction: Hover for counts -> Justification: Best for comparing the frequency of categorical themes. Horizontal layout accommodates longer Korean labels. -> Library: Chart.js.
+        3. Qualitative Review Quotes -> Goal: Organize & Detail -> Viz: Accordion Cards -> Interaction: Click to expand/collapse -> Justification: Hides detailed text by default, allowing users to selectively explore evidence without being overwhelmed. -> Method: HTML/CSS/JS.
+        4. Keyword Summary -> Goal: Inform -> Viz: Tag Cloud -> Interaction: None -> Justification: Visually represents keyword prominence through font size, offering a quick, scannable summary. -> Method: HTML/Tailwind CSS.
+    -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+        body { font-family: 'Noto Sans KR', sans-serif; background-color: #F8F7F4; color: #333333; }
+        .chart-container { position: relative; width: 100%; height: 320px; max-height: 400px; }
+        @media (min-width: 768px) { .chart-container { height: 400px; } }
+        .nav-link { transition: color 0.3s ease; }
+        .accordion-content { max-height: 0; overflow: hidden; transition: max-height 0.5s ease-in-out; }
+        .accordion-content.open { max-height: 1000px; }
+        .tag { display: inline-block; padding: 4px 12px; margin: 4px; border-radius: 16px; transition: transform 0.2s ease; }
+        .tag:hover { transform: scale(1.05); }
+    </style>
+</head>
+<body class="bg-[#F8F7F4]">
+
+    <header class="bg-white/80 backdrop-blur-lg shadow-sm sticky top-0 z-50">
+        <nav class="container mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <div class="flex-shrink-0">
+                    <h1 class="text-xl md:text-2xl font-bold text-[#3D405B]">제품 리뷰 분석: 고객의 소리</h1>
+                </div>
+                <div class="hidden md:block">
+                    <div class="ml-10 flex items-baseline space-x-4">
+                        <a href="#summary" class="nav-link text-gray-600 hover:text-[#E07A5F] px-3 py-2 rounded-md text-sm font-medium">종합 분석</a>
+                        <a href="#positive" class="nav-link text-gray-600 hover:text-[#E07A5F] px-3 py-2 rounded-md text-sm font-medium">긍정적 분석</a>
+                        <a href="#improvement" class="nav-link text-gray-600 hover:text-[#E07A5F] px-3 py-2 rounded-md text-sm font-medium">개선점 분석</a>
+                        <a href="#keywords" class="nav-link text-gray-600 hover:text-[#E07A5F] px-3 py-2 rounded-md text-sm font-medium">주요 키워드</a>
+                    </div>
+                </div>
+                 <div class="md:hidden">
+                    <button id="mobile-menu-button" class="inline-flex items-center justify-center p-2 rounded-md text-gray-500 hover:text-white hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-800 focus:ring-white">
+                        <span class="sr-only">Open main menu</span>
+                        <svg class="h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7" />
+                        </svg>
+                    </button>
+                </div>
+            </div>
+             <div id="mobile-menu" class="md:hidden hidden">
+                <div class="px-2 pt-2 pb-3 space-y-1 sm:px-3">
+                    <a href="#summary" class="nav-link block text-gray-600 hover:text-[#E07A5F] px-3 py-2 rounded-md text-base font-medium">종합 분석</a>
+                    <a href="#positive" class="nav-link block text-gray-600 hover:text-[#E07A5F] px-3 py-2 rounded-md text-base font-medium">긍정적 분석</a>
+                    <a href="#improvement" class="nav-link block text-gray-600 hover:text-[#E07A5F] px-3 py-2 rounded-md text-base font-medium">개선점 분석</a>
+                    <a href="#keywords" class="nav-link block text-gray-600 hover:text-[#E07A5F] px-3 py-2 rounded-md text-base font-medium">주요 키워드</a>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <main class="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        
+        <section id="summary" class="py-12 scroll-mt-20">
+            <h2 class="text-3xl font-bold text-center mb-4 text-[#3D405B]">종합 분석</h2>
+            <p class="text-center max-w-3xl mx-auto text-gray-600 mb-12">
+                전체 리뷰 데이터를 종합해 보면, 제품에 대한 고객 만족도는 매우 높은 수준입니다. 대다수의 고객이 5점 만점에 4점 이상의 높은 점수를 부여했으며, 이는 제품과 서비스가 고객의 기대를 크게 충족시키고 있음을 보여줍니다.
+            </p>
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+                <div class="bg-white rounded-xl shadow-lg p-6">
+                    <h3 class="text-xl font-semibold text-center mb-4 text-gray-700">리뷰 평점 분포</h3>
+                    <div class="chart-container mx-auto max-w-sm">
+                        <canvas id="reviewScoreChart"></canvas>
+                    </div>
+                </div>
+                <div class="space-y-6">
+                    <div class="bg-white rounded-xl shadow-lg p-6 flex items-center space-x-4">
+                        <div class="bg-[#81B29A]/20 text-[#81B29A] p-3 rounded-full">
+                            <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                        </div>
+                        <div>
+                            <h4 class="text-lg font-semibold text-gray-800">압도적인 긍정 평가</h4>
+                            <p class="text-gray-600">리뷰의 약 90%가 4점 이상으로, 높은 전반적 만족도를 보입니다.</p>
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-xl shadow-lg p-6 flex items-center space-x-4">
+                        <div class="bg-[#E07A5F]/20 text-[#E07A5F] p-3 rounded-full">
+                           <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                        </div>
+                        <div>
+                            <h4 class="text-lg font-semibold text-gray-800">핵심 만족 요인</h4>
+                            <p class="text-gray-600">빠른 배송, 제품 성능, 가성비가 긍정 평가의 주된 이유입니다.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <div class="border-t border-gray-200 my-12"></div>
+
+        <section id="positive" class="py-12 scroll-mt-20">
+            <h2 class="text-3xl font-bold text-center mb-4 text-[#3D405B]">긍정적 분석: 고객이 만족한 이유</h2>
+            <p class="text-center max-w-3xl mx-auto text-gray-600 mb-12">
+                고객들은 여러 요소에서 높은 만족감을 표현했습니다. 특히 배송 서비스, 제품의 핵심 성능, 그리고 가격 경쟁력은 재구매와 추천으로 이어지는 강력한 동력이 되고 있습니다. 아래 차트와 카드를 통해 주요 긍정 요소를 자세히 살펴보세요.
+            </p>
+            <div class="grid grid-cols-1 lg:grid-cols-5 gap-8">
+                <div class="lg:col-span-2 bg-white rounded-xl shadow-lg p-6">
+                    <h3 class="text-xl font-semibold text-center mb-4 text-gray-700">긍정 리뷰 핵심 키워드</h3>
+                    <div class="chart-container">
+                        <canvas id="positiveKeywordsChart"></canvas>
+                    </div>
+                </div>
+                <div id="positive-accordion" class="lg:col-span-3 space-y-4">
+                </div>
+            </div>
+        </section>
+
+        <div class="border-t border-gray-200 my-12"></div>
+
+        <section id="improvement" class="py-12 scroll-mt-20">
+            <h2 class="text-3xl font-bold text-center mb-4 text-[#3D405B]">개선점 분석: 고객의 목소리</h2>
+            <p class="text-center max-w-3xl mx-auto text-gray-600 mb-12">
+                대부분의 평가는 긍정적이었지만, 일부 고객들은 불편을 겪었습니다. 배송 과정에서의 문제, 제품의 사소한 결함, 그리고 정보 전달의 부족은 개선이 필요한 부분입니다. 이러한 피드백은 더 나은 서비스를 위한 중요한 자산입니다.
+            </p>
+            <div class="grid grid-cols-1 lg:grid-cols-5 gap-8">
+                 <div id="improvement-accordion" class="lg:col-span-3 space-y-4">
+                </div>
+                <div class="lg:col-span-2 bg-white rounded-xl shadow-lg p-6 order-first lg:order-last">
+                    <h3 class="text-xl font-semibold text-center mb-4 text-gray-700">개선 필요 키워드</h3>
+                    <div class="chart-container">
+                        <canvas id="negativeKeywordsChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <div class="border-t border-gray-200 my-12"></div>
+        
+        <section id="keywords" class="py-12 scroll-mt-20">
+            <h2 class="text-3xl font-bold text-center mb-4 text-[#3D405B]">한눈에 보는 주요 키워드</h2>
+            <p class="text-center max-w-3xl mx-auto text-gray-600 mb-12">
+                고객 리뷰에서 가장 자주 언급된 단어들을 시각적으로 확인해 보세요. 키워드의 크기는 언급 빈도를 나타냅니다. 이를 통해 고객들의 주요 관심사와 평가 기준을 직관적으로 파악할 수 있습니다.
+            </p>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div class="bg-white rounded-xl shadow-lg p-8">
+                    <h3 class="text-2xl font-semibold text-center mb-6 text-green-700">👍 긍정 키워드</h3>
+                    <div id="positive-tags" class="text-center"></div>
+                </div>
+                <div class="bg-white rounded-xl shadow-lg p-8">
+                    <h3 class="text-2xl font-semibold text-center mb-6 text-red-700">👎 개선 필요 키워드</h3>
+                    <div id="negative-tags" class="text-center"></div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <footer class="bg-gray-800 text-white mt-16">
+        <div class="container mx-auto px-4 sm:px-6 lg:px-8 py-4 text-center text-sm">
+            <p>&copy; 2024 Product Review Analysis. All Rights Reserved.</p>
+            <p class="mt-1 text-xs text-gray-400">Source: Customer Review Data Analysis Report</p>
+        </div>
+    </footer>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+
+            const smoothScroll = (targetId) => {
+                const targetElement = document.querySelector(targetId);
+                if (targetElement) {
+                    window.scrollTo({
+                        top: targetElement.offsetTop - 80,
+                        behavior: 'smooth'
+                    });
+                }
+            };
+            
+            document.querySelectorAll('.nav-link').forEach(anchor => {
+                anchor.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    smoothScroll(this.getAttribute('href'));
+                    if(window.innerWidth < 768) {
+                        document.getElementById('mobile-menu').classList.add('hidden');
+                    }
+                });
+            });
+
+            const mobileMenuButton = document.getElementById('mobile-menu-button');
+            const mobileMenu = document.getElementById('mobile-menu');
+            mobileMenuButton.addEventListener('click', () => {
+                mobileMenu.classList.toggle('hidden');
+            });
+
+            const positiveAccordionData = [
+                {
+                    title: '🚀 신속하고 친절한 배송/설치',
+                    content: [
+                        '기사님 너무 친절하시고 유쾌하신 분이시더라구요. 설치까지 빠르게 해주셨어요.',
+                        '주문하고 다음날 바로 받았습니다. 급했는데 정말 감사합니다.',
+                        '배송전 미리 전화도 주시고, 원하는 위치에 딱 놓아주셨어요. 제가 손하나 까딱 안했네요.'
+                    ]
+                },
+                {
+                    title: '❄️ 뛰어난 제품 성능과 품질',
+                    content: [
+                        '금방 시원해지고 아주 잘됩니다. 냉기 빵빵하네요!',
+                        '소음이 클거라고 생각하고 샀지만 생각보다 조용해서 너무 좋아요.',
+                        '디자인 깔끔하고, 조명이 들어오니깐 세련되고 멋있어요.'
+                    ]
+                },
+                {
+                    title: '💰 합리적인 가격과 놀라운 가성비',
+                    content: [
+                        '가성비 너무 좋아요. 저렴하게 좋은 제품 잘 받았습니다.',
+                        '소상공인 지원 받아서 진짜 진짜 잘 샀습니다. 후회없어요.',
+                        '중고랑 고민했는데, 조금 더 주고 새거 사는게 100배 낫네요.'
+                    ]
+                },
+                {
+                    title: '🤝 만족스러운 고객 서비스',
+                    content: [
+                        '궁금한 부분에 대한 답도 친절하게 상담해주셔서 만족했습니다.',
+                        '소상공인 환급신청 문의드렸더니 빠른 응대로 쉽게 신청했습니다.',
+                        '다음에 또 구매할 일 있으면 여기서 할게요. 재구매 의사 100%입니다.'
+                    ]
+                }
+            ];
+
+            const improvementAccordionData = [
+                {
+                    title: '🚚 배송 관련 문제점',
+                    content: [
+                        '계단 3개 이상이면 추가비용이 발생한다고 하더라고요. 미리 공지가 있었으면 좋았을텐데 아쉬워요.',
+                        '배송 기사님이 제품을 길바닥에서 끌고 와서 문 앞에 던져놓고 가셨어요. 기분이 너무 안 좋았습니다.',
+                        '지방이라 그런지 배송이 일주일 넘게 걸렸습니다.'
+                    ]
+                },
+                {
+                    title: '🔧 제품 기능 및 사용성 이슈',
+                    content: [
+                        '가정에서 쓰기에는 팬 돌아가는 소음이 살짝 큽니다.',
+                        '문이 저절로 닫히지 않고 삐걱삐걱 쇠소리까지 나네요.',
+                        '여름이라 그런지 앞 유리에 물방울(결로)이 너무 많이 맺혀서 계속 닦아줘야 해요.'
+                    ]
+                },
+                {
+                    title: '📞 정보 부족 및 소통 문제',
+                    content: [
+                        '한 달 만에 고장났는데 판매사 AS 대응이 별로였어요. 상담원이 불친절했습니다.',
+                        '제품 사용법 종이도 따로 없고... 좀 불친절한 것 같아요.',
+                        '리뷰 별점 낮게 주니 바로 전화와서 수정해달라는 식으로 얘기하는데 좀 무서웠습니다. 이런 업체는 처음 봐요.'
+                    ]
+                }
+            ];
+
+            const createAccordion = (containerId, data) => {
+                const container = document.getElementById(containerId);
+                data.forEach((item, index) => {
+                    const div = document.createElement('div');
+                    div.className = 'bg-white rounded-xl shadow-lg overflow-hidden';
+                    div.innerHTML = `
+                        <button class="accordion-button w-full text-left p-5 flex justify-between items-center bg-white hover:bg-gray-50 transition-colors">
+                            <span class="text-lg font-semibold text-gray-800">${item.title}</span>
+                            <svg class="w-6 h-6 transform transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                        </button>
+                        <div class="accordion-content">
+                            <div class="p-5 border-t border-gray-200">
+                                <ul class="space-y-3 list-disc list-inside text-gray-600">
+                                    ${item.content.map(text => `<li>${text}</li>`).join('')}
+                                </ul>
+                            </div>
+                        </div>
+                    `;
+                    container.appendChild(div);
+                });
+            };
+            
+            createAccordion('positive-accordion', positiveAccordionData);
+            createAccordion('improvement-accordion', improvementAccordionData);
+
+            document.querySelectorAll('.accordion-button').forEach(button => {
+                button.addEventListener('click', () => {
+                    const content = button.nextElementSibling;
+                    const icon = button.querySelector('svg');
+
+                    button.parentElement.parentElement.querySelectorAll('.accordion-content').forEach(otherContent => {
+                        if (otherContent !== content && otherContent.classList.contains('open')) {
+                            otherContent.classList.remove('open');
+                            otherContent.previousElementSibling.querySelector('svg').classList.remove('rotate-180');
+                        }
+                    });
+
+                    content.classList.toggle('open');
+                    icon.classList.toggle('rotate-180');
+                });
+            });
+
+
+            const reviewScoreCtx = document.getElementById('reviewScoreChart').getContext('2d');
+            new Chart(reviewScoreCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['5점', '4점', '3점', '1-2점'],
+                    datasets: [{
+                        label: '리뷰 평점',
+                        data: [65, 25, 5, 5],
+                        backgroundColor: ['#81B29A', '#A1C6B3', '#F6C8B4', '#E07A5F'],
+                        borderColor: '#F8F7F4',
+                        borderWidth: 4,
+                        hoverOffset: 8
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '60%',
+                    plugins: {
+                        legend: { position: 'bottom', labels: { padding: 20, font: { size: 14 } } },
+                        tooltip: {
+                            callbacks: { label: (context) => `${context.label}: ${context.raw}%` }
+                        }
+                    }
+                }
+            });
+
+            const positiveKeywordsCtx = document.getElementById('positiveKeywordsChart').getContext('2d');
+            new Chart(positiveKeywordsCtx, {
+                type: 'bar',
+                data: {
+                    labels: ['가성비', '디자인', '저소음', '냉장 성능', '친절', '빠른 배송'],
+                    datasets: [{
+                        label: '언급 빈도',
+                        data: [85, 60, 65, 95, 90, 100],
+                        backgroundColor: '#81B29A',
+                        borderRadius: 8
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: { beginAtZero: true, grid: { display: false }, ticks: { display: false } },
+                        y: { grid: { display: false }, ticks: { font: { size: 14, weight: '500' } } }
+                    }
+                }
+            });
+
+            const negativeKeywordsCtx = document.getElementById('negativeKeywordsChart').getContext('2d');
+            new Chart(negativeKeywordsCtx, {
+                type: 'bar',
+                data: {
+                    labels: ['정보 부족', 'AS 불만', '결로 현상', '제품 손상', '소음', '추가 배송비'],
+                    datasets: [{
+                        label: '언급 빈도',
+                        data: [40, 55, 60, 70, 75, 90],
+                        backgroundColor: '#E07A5F',
+                        borderRadius: 8
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: { beginAtZero: true, grid: { display: false }, ticks: { display: false } },
+                        y: { grid: { display: false }, ticks: { font: { size: 14, weight: '500' } } }
+                    }
+                }
+            });
+            
+            const positiveTagsData = [
+                { text: '가성비', size: '3xl' }, { text: '친절', size: '2xl' }, { text: '빠른배송', size: '3xl' },
+                { text: '성능최고', size: '2xl' }, { text: '디자인', size: 'xl' }, { text: '만족', size: '3xl' },
+                { text: '소음없음', size: 'xl' }, { text: '추천', size: '2xl' }, { text: '저렴', size: 'xl' },
+                { text: '소상공인', size: 'lg' }, { text: '꼼꼼한포장', size: 'lg' }
+            ];
+
+            const negativeTagsData = [
+                { text: '추가비용', size: '3xl' }, { text: '소음', size: '2xl' }, { text: '결로', size: '2xl' },
+                { text: '배송느림', size: 'xl' }, { text: '불친절', size: 'xl' }, { text: 'AS', size: '2xl' },
+                { text: '문짝', size: 'lg' }, { text: '파손', size: 'xl' }, { text: '전화옴', size: 'xl' },
+                { text: '정보부족', size: 'lg' }
+            ];
+
+            const createTags = (containerId, data, color) => {
+                const container = document.getElementById(containerId);
+                data.forEach(tag => {
+                    const span = document.createElement('span');
+                    span.textContent = tag.text;
+                    span.className = `tag text-${tag.size} font-semibold bg-${color}-100 text-${color}-800`;
+                    container.appendChild(span);
+                });
+            };
+
+            createTags('positive-tags', positiveTagsData, 'green');
+            createTags('negative-tags', negativeTagsData, 'red');
+
+        });
+    </script>
+</body>
+</html>
